@@ -70,19 +70,40 @@ class Pedido(BaseModel):
     tipo: TipoPedido = Field(description=(
         "Tipo do pedido: 'ferias' (descanso anual, pode incluir venda de dias), 'abono' (folga de 1 dia útil), "
         "'diaria' (viagem a serviço), 'licenca_saude' (afastamento por doença) ou 'outro'."))
+    matricula: str | None = Field(default=None, description=(
+        "Matrícula do servidor, com 4 dígitos (ex.: '1002'). Use null se o servidor não informou."))
+    data_inicio: str | None = Field(default=None, description=(
+        "Data de início do período pedido, no formato AAAA-MM-DD. Use null se não houver data exata."))
+    data_fim: str | None = Field(default=None, description=(
+        "Data de fim do período pedido, no formato AAAA-MM-DD. No abono, é igual à data_inicio. "
+        "Use null se não houver data exata."))
+    dias_vendidos: int = Field(default=0, ge=0, le=10, description=(
+        "Quantidade de dias de férias que o servidor quer vender (abono pecuniário), de 0 a 10. "
+        "Use 0 se ele não pediu explicitamente para vender dias."))
+    destino: str | None = Field(default=None, description=(
+        "Cidade de destino da viagem. Só para diária; nos demais tipos, use null."))
+    tipo_destino: TipoDestino | None = Field(default=None, description=(
+        "Tipo do destino da diária: 'capital', 'interior' ou 'exterior'. Só para diária; nos demais tipos, use null."))
+    justificativa: str = Field(default="", description=(
+        "Resumo do motivo do pedido em uma frase, sem dados de saúde."))
 
 
 def criar_extrator(instrucoes: str, input_guardrails: list | None = None) -> Agent:
     # ETAPA 2.2 -- devolva Agent(name="Extrator", instructions=instrucoes, output_type=Pedido,
     #   input_guardrails=input_guardrails or [])
     #   (os guardrails só entram na Etapa 3; até lá, a lista fica vazia)
-    raise NotImplementedError("ETAPA 2.2: criar_extrator")
+    return Agent(
+        name="Extrator",
+        instructions=instrucoes,
+        output_type=Pedido,
+        input_guardrails=input_guardrails or [],
+    )
 
 
 INSTRUCOES_EXTRATOR = (
-    f"Hoje é {texto_hoje()}. "  # (PRONTO) a data real: o modelo não tem relógio (aula3/agente_retry.py)
+    f"Hoje é {texto_hoje()}. "
     "Você extrai pedidos de servidores para o RH (férias, abono ou diária). "
-    "TODO ETAPA 2.2: complete -- datas no formato AAAA-MM-DD, não invente o que não foi dito (use null), "
+    "Datas no formato AAAA-MM-DD, não invente o que não foi dito (use null), "
     "dias vendidos só se o servidor pedir explicitamente."
 )
 
@@ -90,14 +111,34 @@ INSTRUCOES_EXTRATOR = (
 def extrair(texto: str) -> Pedido:
     # ETAPA 2.3 -- rode criar_extrator(INSTRUCOES_EXTRATOR) com Runner.run_sync e devolva final_output
     #   (é um objeto Pedido, não texto!)
-    raise NotImplementedError("ETAPA 2.3: extrair")
+    resultado = Runner.run_sync(criar_extrator(INSTRUCOES_EXTRATOR), texto)
+    return resultado.final_output
 
 
 # ------------------------------------------------------------------ 🆕 A: votação (OPCIONAL, bônus)
 # Para ligar no grafo depois de pronto: USAR_VOTACAO = True em etapa07_grafo.py.
 # 🆕 A.1 -- três instruções LIGEIRAMENTE diferentes para a MESMA tarefa (comece cada uma com f"Hoje é {texto_hoje()}. ")
 #   ex.: um extrator literal; um que confere as datas contra o calendário; um que "pensa como o RH".
-INSTRUCOES_VOTANTES: list[str] = []  # TODO 🆕 A.1: preencha com 3 strings
+INSTRUCOES_VOTANTES: list[str] = [  # TODO 🆕 A.1: preencha com 3 strings
+    (
+        f"Hoje é {texto_hoje()}. "
+        "Você extrai pedidos de servidores para o RH (férias, abono ou diária). "
+        "Seja literal: preencha só o que está escrito no texto, datas no formato AAAA-MM-DD, "
+        "use null no que não foi dito e dias vendidos só se o servidor pedir explicitamente."
+    ),
+    (
+        f"Hoje é {texto_hoje()}. "
+        "Você extrai pedidos de servidores para o RH (férias, abono ou diária). "
+        "Confira as datas contra o calendário: o dia da semana citado deve bater com a data. "
+        "Datas no formato AAAA-MM-DD, use null no que não foi dito e dias vendidos só se o servidor pedir explicitamente."
+    ),
+    (
+        f"Hoje é {texto_hoje()}. "
+        "Você é um analista do RH e extrai pedidos de servidores (férias, abono ou diária). "
+        "Pense como o RH: o que o servidor quer de fato? Datas no formato AAAA-MM-DD, "
+        "use null no que não foi dito e dias vendidos só se o servidor pedir explicitamente."
+    ),
+]
 
 
 async def extrair_com_votacao(texto: str) -> tuple[Pedido, bool, list[Pedido]]:
@@ -105,7 +146,11 @@ async def extrair_com_votacao(texto: str) -> tuple[Pedido, bool, list[Pedido]]:
     #     resultados = await asyncio.gather(*(Runner.run(e, texto) for e in extratores))
     #   depois chame votar([r.final_output for r in resultados]) e devolva (pedido_final, divergencia, votos).
     #   Conceito: aula7/exemplos/08_paralelismo/main.py (fan-out/fan-in), aqui em asyncio, sem grafo.
-    raise NotImplementedError("🆕 A.2: extrair_com_votacao")
+    extratores = [criar_extrator(instrucoes) for instrucoes in INSTRUCOES_VOTANTES]
+    resultados = await asyncio.gather(*(Runner.run(e, texto) for e in extratores))
+    votos = [r.final_output for r in resultados]
+    pedido_final, divergencia = votar(votos)
+    return pedido_final, divergencia, votos
 
 
 def votar(votos: list[Pedido]) -> tuple[Pedido, bool]:
@@ -114,7 +159,14 @@ def votar(votos: list[Pedido]) -> tuple[Pedido, bool]:
     #   Se NÃO houver maioria (2 de 3) em `tipo` ou em alguma das datas: divergencia=True
     #   (o sistema vai pedir esclarecimento em vez de adivinhar).
     #   Devolva (Pedido decidido, divergencia). Dica: votos[0].model_copy(update={...}).
-    raise NotImplementedError("🆕 A.3: votar")
+    decididos = {}
+    divergencia = False
+    for campo in ("tipo", "matricula", "data_inicio", "data_fim", "dias_vendidos"):
+        valor, quantos = Counter(getattr(voto, campo) for voto in votos).most_common(1)[0]
+        decididos[campo] = valor
+        if quantos < 2 and campo in ("tipo", "data_inicio", "data_fim"):
+            divergencia = True
+    return votos[0].model_copy(update=decididos), divergencia
 
 
 def _demo_extracao() -> None:
@@ -135,7 +187,15 @@ def _demo_votacao() -> None:
         print(f"  decisão: {pedido.model_dump()}")
     # 🆕 A.4 -- meça também os 3 extratores EM SEQUÊNCIA (um Runner.run_sync depois do outro) para o C2
     #   e imprima os dois tempos. O paralelo fica perto do tempo de UMA chamada?
-    raise NotImplementedError("🆕 A.4: comparar tempo paralelo x sequencial")
+    texto = CASOS["C2_ferias_com_venda"]["pedido"]
+    inicio = time.perf_counter()
+    asyncio.run(extrair_com_votacao(texto))
+    paralelo = time.perf_counter() - inicio
+    inicio = time.perf_counter()
+    for instrucoes in INSTRUCOES_VOTANTES:
+        Runner.run_sync(criar_extrator(instrucoes), texto)
+    sequencial = time.perf_counter() - inicio
+    print(f"\nC2: paralelo {paralelo:.1f}s x sequencial {sequencial:.1f}s")
 
 
 if __name__ == "__main__":
