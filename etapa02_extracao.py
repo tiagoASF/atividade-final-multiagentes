@@ -104,6 +104,7 @@ INSTRUCOES_EXTRATOR = (
     f"Hoje é {texto_hoje()}. "
     "Você extrai pedidos de servidores para o RH (férias, abono ou diária). "
     "Datas no formato AAAA-MM-DD, não invente o que não foi dito (use null), "
+    "Se o servidor citar só o mês ou um período vago (ex.: 'em agosto'), sem dia exato, use null em data_inicio e data_fim. "
     "dias vendidos só se o servidor pedir explicitamente."
 )
 

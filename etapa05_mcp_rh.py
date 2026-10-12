@@ -60,39 +60,84 @@ def _gravar_registros(registros: dict) -> None:
 # ------------------------------------------------------------------ ETAPA 5.1: leitura
 @mcp.tool()
 def consultar_servidor(matricula: str) -> dict:
-    """TODO ETAPA 5.1: docstring. Cadastro de UM servidor, SEM o salário."""
+    """Cadastro de UM servidor: nome, cargo, equipe, chefia, saldo de férias (dias) e abonos restantes.
+    Não devolve o salário (dado restrito).
+
+    Args:
+        matricula: matrícula do servidor, ex.: "1002".
+    """
     # Mesmo conteúdo da tool da Etapa 1, agora no server. Matrícula inexistente: {"erro": "matrícula não encontrada"}.
-    raise NotImplementedError("ETAPA 5.1: consultar_servidor")
+    servidor = carregar_servidores().get(matricula)
+    if servidor is None:
+        return {"erro": "matrícula não encontrada"}
+    return {
+        "matricula": servidor["matricula"],
+        "nome": servidor["nome"],
+        "cargo": servidor["cargo"],
+        "equipe": servidor["equipe"],
+        "chefia": servidor["chefia"],
+        "saldo_ferias_dias": servidor["saldo_ferias_dias"],
+        "abonos_restantes": servidor["abonos_restantes"],
+    }
 
 
 @mcp.tool()
 def consultar_escala(equipe: str, inicio: str, fim: str) -> dict:
-    """TODO ETAPA 5.1: docstring. Afastamentos da equipe que se sobrepõem ao período e o limite da regra N5."""
+    """Afastamentos já marcados de uma equipe que se sobrepõem ao período, e o limite de afastados (regra N5).
+
+    Args:
+        equipe: nome da equipe, ex.: "Cartório".
+        inicio: início do período consultado, formato AAAA-MM-DD.
+        fim: fim do período consultado, formato AAAA-MM-DD.
+    """
     # Devolva {"equipe", "tamanho_equipe", "limite_afastados" (30% arredondado p/ baixo, mínimo 1),
     #          "afastamentos": [...os de carregar_escala() da equipe com sobreposição de datas...]}
     # Duas faixas [a1, a2] e [b1, b2] se sobrepõem quando a1 <= b2 e b1 <= a2 (dá para comparar as strings AAAA-MM-DD).
-    raise NotImplementedError("ETAPA 5.1: consultar_escala")
+    tamanho = sum(1 for s in carregar_servidores().values() if s["equipe"] == equipe)
+    afastamentos = [a for a in carregar_escala()
+                    if a["equipe"] == equipe and a["inicio"] <= fim and inicio <= a["fim"]]
+    return {"equipe": equipe, "tamanho_equipe": tamanho, "limite_afastados": max(1, int(tamanho * 0.3)),
+            "afastamentos": afastamentos}
 
 
 @mcp.tool()
 def consultar_normas(tema: str) -> dict:
-    """TODO ETAPA 5.1: docstring (diga quais temas existem: férias, prazos, escala, abono, diária, aprovação...)."""
+    """Regras (normas N1..N10) do RH de um tema.
+
+    Args:
+        tema: tema da norma. Temas: férias, prazos, escala, abono, diária, aprovação, saúde...
+              (sem diferenciar acento nem maiúscula).
+    """
     # Devolva {"tema": tema, "regras": normas(tema)} (normas() está em dados_rh.py).
     # Por que um dict e não a lista direto? Uma tool MCP que devolve LISTA manda cada item como um conteúdo separado:
     # quem chama não distingue "lista com 1 regra" de "1 dict". Neste server, TODA tool devolve UM dict.
-    raise NotImplementedError("ETAPA 5.1: consultar_normas")
+    return {"tema": tema, "regras": normas(tema)}
 
 
 @mcp.tool()
 def tabela_diarias(tipo_destino: str) -> dict:
-    """TODO ETAPA 5.1: docstring. Moeda e valor da diária para capital, interior ou exterior."""
-    raise NotImplementedError("ETAPA 5.1: tabela_diarias")
+    """Moeda e valor da diária para um tipo de destino.
+
+    Args:
+        tipo_destino: "capital", "interior" ou "exterior".
+    """
+    diaria = carregar_diarias().get(tipo_destino)
+    if diaria is None:
+        return {"erro": "tipo de destino não encontrado"}
+    return {"tipo_destino": tipo_destino, **diaria}
 
 
 @mcp.tool()
 def consultar_remuneracao(matricula: str) -> dict:
-    """[RESTRITA] TODO ETAPA 5.1: docstring. Salário-base de um servidor (só o Financeiro deve usar, ver 🆕 B)."""
-    raise NotImplementedError("ETAPA 5.1: consultar_remuneracao")
+    """[RESTRITA] Salário-base de um servidor (só o Financeiro deve usar, ver 🆕 B).
+
+    Args:
+        matricula: matrícula do servidor, ex.: "1002".
+    """
+    servidor = carregar_servidores().get(matricula)
+    if servidor is None:
+        return {"erro": "matrícula não encontrada"}
+    return {"matricula": matricula, "salario_base": servidor["salario_base"]}
 
 
 # ------------------------------------------------------------------ ETAPA 5.2 / 9.2 / 9.3: escrita
@@ -102,18 +147,37 @@ def _auditar(protocolo: str, decisao_acesso: str, motivo: str, parametros: dict)
     #   motivo e os parâmetros (SEM o token e SEM o despacho inteiro).
     #   Referência: aula5/exemplos/10_seguranca/server_seguro.py (_registrar_auditoria), aqui em JSON Lines.
     #   Até fazer a 9.3, este pass deixa a escrita funcionar sem auditoria.
-    pass
+    linha = {
+        "quando": datetime.now().isoformat(),
+        "thread_id": parametros.get("thread_id"),
+        "aprovador": parametros.get("aprovador"),
+        "tool": "registrar_decisao",
+        "protocolo": protocolo,
+        "decisao_acesso": decisao_acesso,
+        "motivo": motivo,
+        "parametros": parametros,
+    }
+    with open(ARQUIVO_AUDITORIA, "a", encoding="utf-8") as f:
+        f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 
 
 @mcp.tool()
 def registrar_decisao(protocolo: str, matricula: str, tipo: str, inicio: str, fim: str, decisao: str,
                       aprovador: str, despacho: str, token: str, thread_id: str = "") -> dict:
-    """[ESCRITA -- requer autorização] TODO ETAPA 5.2: docstring.
+    """[ESCRITA -- requer autorização] Registra a decisão de UM pedido. Idempotente: o mesmo protocolo não duplica.
+    Toda tentativa (autorizada ou negada) é auditada.
 
     Args:
         protocolo: protocolo idempotente do pedido (ferramentas.gerar_protocolo).
-        ...: TODO descreva os demais.
+        matricula: matrícula do servidor que fez o pedido.
+        tipo: tipo do pedido: "ferias", "abono" ou "diaria".
+        inicio: início do período, formato AAAA-MM-DD.
+        fim: fim do período, formato AAAA-MM-DD.
+        decisao: "deferido", "indeferido" ou "indeferido_pela_chefia".
+        aprovador: matrícula da chefia que aprovou, ou "sistema" quando a decisão não exige a chefia.
+        despacho: texto do despacho da decisão.
         token: token de registro. Sem ele, a gravação é negada.
+        thread_id: identificador da execução do grafo (opcional, usado na auditoria).
     """
     parametros = {"matricula": matricula, "tipo": tipo, "inicio": inicio, "fim": fim, "decisao": decisao,
                   "aprovador": aprovador, "thread_id": thread_id}
@@ -125,12 +189,33 @@ def registrar_decisao(protocolo: str, matricula: str, tipo: str, inicio: str, fi
     #   - decisao == "deferido" e tipo in TIPOS_COM_CHEFIA e aprovador != chefia do servidor no cadastro.
     #   Devolva {"sucesso": False, "erro": "..."} -- quem nega é o SERVER, não o agente.
     #   Referência: aula5/exemplos/10_seguranca/server_seguro.py (alterar_status_ocorrencia)
+    motivo_negado = None
+    if not TOKEN_REGISTRO or token != TOKEN_REGISTRO:
+        motivo_negado = "token inválido"
+    elif decisao not in DECISOES_VALIDAS:
+        motivo_negado = f"decisão inválida ({decisao})"
+    elif aprovador == matricula:
+        motivo_negado = "ninguém aprova o próprio pedido (N8)"
+    elif decisao == "deferido" and tipo in TIPOS_COM_CHEFIA:
+        servidor = carregar_servidores().get(matricula)
+        if servidor is None or aprovador != servidor["chefia"]:
+            motivo_negado = "aprovador não é a chefia do servidor (N8)"
+    if motivo_negado:
+        _auditar(protocolo, "DENY", motivo_negado, parametros)
+        return {"sucesso": False, "erro": f"Operação negada e registrada em auditoria: {motivo_negado}."}
 
     # ETAPA 5.2 -- grave em ARQUIVO_REGISTROS (use _ler_registros/_gravar_registros).
     #   Protocolo já existe -> NÃO grave de novo; devolva {"sucesso": True, "duplicado": True, ...}.
     #   Senão grave {**parametros, "despacho": despacho, "registrado_em": ...} e devolva {"sucesso": True, ...}.
     #   Audite com ALLOW (9.3).
-    raise NotImplementedError("ETAPA 5.2: registrar_decisao")
+    registros = _ler_registros()
+    if protocolo in registros:
+        _auditar(protocolo, "ALLOW", "duplicado: protocolo já registrado", parametros)
+        return {"sucesso": True, "duplicado": True, "protocolo": protocolo}
+    registros[protocolo] = {**parametros, "despacho": despacho, "registrado_em": datetime.now().isoformat()}
+    _gravar_registros(registros)
+    _auditar(protocolo, "ALLOW", "gravado", parametros)
+    return {"sucesso": True, "duplicado": False, "protocolo": protocolo}
 
 
 if __name__ == "__main__":

@@ -42,7 +42,15 @@ async def chamar_mcp_async(tool: str, argumentos: dict) -> dict:
     #   Dica: StdioServerParameters(command=sys.executable, args=[SERVER]) e, para não poluir a tela,
     #   stdio_client(params, errlog=open(os.devnull, "w")).
     #   Referência: aula6/desafio2/main.py (chamar_mcp)
-    raise NotImplementedError("ETAPA 5.4: chamar_mcp_async")
+    params = StdioServerParameters(command=sys.executable, args=[SERVER])  # como subir o servidor: "python etapa05_mcp_rh.py"
+    with open(os.devnull, "w") as silencio:  # descarta as mensagens de log do servidor
+        async with stdio_client(params, errlog=silencio) as (leitura, escrita):  # sobe o servidor e abre o canal
+            async with ClientSession(leitura, escrita) as sessao:  # a conversa MCP
+                await sessao.initialize()  # "aperto de mão" do protocolo
+                resposta = await sessao.call_tool(tool, argumentos)  # chama a tool pelo NOME, com os parâmetros
+                if resposta.is_error:
+                    raise RuntimeError(f"MCP {tool}: {resposta.content}")
+                return json.loads(resposta.content[0].text)  # toda tool devolve UM dict, que chega como texto JSON
 
 
 def chamar_mcp(tool: str, argumentos: dict) -> dict:
@@ -58,7 +66,23 @@ async def perguntar_ao_atendente(pergunta: str) -> str:
     #       devolva (await Runner.run(agente, pergunta)).final_output
     #   Compare com a Etapa 1: o agente perdeu a tool local e ganhou o server inteiro.
     #   Referência: aula5/exemplos/04_agente_mcp/agente.py
-    raise NotImplementedError("ETAPA 5.3: perguntar_ao_atendente")
+    async with MCPServerStdio(
+        name="rh",
+        params={"command": sys.executable, "args": [SERVER]},
+    ) as servidor:
+
+        agente = Agent(
+            name="AtendenteRH",
+            instructions=(
+                "Você atende servidores do setor de Recursos Humanos (RH). Responda em português e de forma breve. "
+                "Use as ferramentas do MCP rh para responder com dados reais. "
+                "Não invente saldo, escala ou regra de cabeça."
+            ),
+            mcp_servers=[servidor],
+        )
+
+        resultado = await Runner.run(agente, pergunta)
+        return resultado.final_output
 
 
 if __name__ == "__main__":

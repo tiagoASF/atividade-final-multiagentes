@@ -33,13 +33,36 @@ def medido(nome: str, no):
     #      e, se o nó devolveu, "tokens" e "fonte_feriados";
     #   3. devolve o MESMO dicionário que o nó devolveu.
     #   Use @functools.wraps(no) para o nome do nó continuar o mesmo.
-    return no  # pass-through: troque pelo wrapper
+    @functools.wraps(no)
+    def embrulhado(estado):
+        inicio = time.perf_counter()
+        saida = no(estado)
+        linha = {"thread_id": estado.get("thread_id"), "no": nome,
+                 "segundos": round(time.perf_counter() - inicio, 3)}
+        for chave in ("tokens", "fonte_feriados"):
+            if chave in saida:
+                linha[chave] = saida[chave]
+        with open(ARQUIVO_METRICAS, "a", encoding="utf-8") as arquivo:
+            arquivo.write(json.dumps(linha, ensure_ascii=False) + "\n")
+        return saida
+
+    return embrulhado
 
 
 def resumo(thread_id: str) -> dict:
     # ETAPA 10.3 -- leia ARQUIVO_METRICAS, filtre pelo thread_id e devolva
     #   {"nos": [...], "segundos_total": ..., "mais_lento": (no, segundos), "tokens_total": ...}
-    raise NotImplementedError("ETAPA 10.3: resumo")
+    linhas = []
+    if ARQUIVO_METRICAS.exists():
+        for texto in ARQUIVO_METRICAS.read_text(encoding="utf-8").splitlines():
+            linha = json.loads(texto)
+            if linha["thread_id"] == thread_id:
+                linhas.append(linha)
+    mais_lento = max(linhas, key=lambda l: l["segundos"], default=None)
+    return {"nos": [l["no"] for l in linhas],
+            "segundos_total": round(sum(l["segundos"] for l in linhas), 3),
+            "mais_lento": (mais_lento["no"], mais_lento["segundos"]) if mais_lento else None,
+            "tokens_total": sum(l.get("tokens", 0) for l in linhas)}
 
 
 if __name__ == "__main__":
