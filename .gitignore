@@ -1,3 +1,11 @@
-# Arquivos gerados ao rodar o exercício (o .env já é ignorado pelo .gitignore da raiz)
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+
+saidas/*.jsonl
 saidas/*
 !saidas/.gitkeep
+
