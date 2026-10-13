@@ -26,7 +26,7 @@ Uma execução pausada em um não aparece no outro.
 A CLI já vem no `.venv` (`langgraph-cli[inmem]`). Se precisar instalar:
 
 ```bash
-uv pip install -U "langgraph-cli[inmem]"      # o .venv é do uv e não tem pip
+uv pip install -U "langgraph-cli[inmem]"      # o .venv é do uv
 ```
 
 ### 2.1 `studio.py`

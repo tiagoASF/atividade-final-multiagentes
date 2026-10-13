@@ -1,8 +1,12 @@
 # Entrega: Assistente de Gestão de Pessoas
 
-**Aluno(s):**
-**Até onde chegou:** ( ) Marco mínimo (Etapa 6)  (X) Marco completo (Etapa 9)  (X) Etapas 10–11
-**Opcionais e bônus feitos:** (X) 🆕 A  (X) 🆕 B  (X) 🆕 C  ( ) Outro: ______
+**Aluno(s):** Tiago André da Silveira Fialho / Thiago Lobo
+
+
+**Até onde chegou:** ( ) Marco mínimo (Etapa 6)  (X) Marco completo (Etapa 9)  (X) 
+
+Etapas 10–11
+**Opcionais e bônus feitos:** (X) 🆕 A  (X) 🆕 B  (X) 🆕 C
 
 > Obs.: o 🆕 A e o 🆕 C estão implementados, mas deixei as chaves `USAR_VOTACAO` e `USAR_TRIAGEM_HUMANA` em `False`
 > (o padrão). Então a tabela dos 12 casos foi rodada com as duas desligadas. No 🆕 B eu fiz o hook (B.1 a B.3), mas não
@@ -10,7 +14,7 @@
 
 ## Etapa 0: quem verifica cada regra?
 
-| Regra | Tema | Quem verifica (função Python / agente / humano) | Por quê | Onde foi implementada (preencha na Etapa 11) |
+| Regra | Tema | Quem verifica (função Python / agente / humano) | Por quê | Onde foi implementada |
 |---|---|---|---|---|
 | N1 | férias | função Python | conta: dias corridos >= 5 e <= saldo | `etapa06_regras.py` (`violacoes_objetivas`) |
 | N2 | férias | função Python (verifica) + agente Financeiro (calcula o valor) | a conta dias + vendidos <= saldo e vendidos <= 10 é Python; o valor da venda (dias vendidos x salário / 30) é calculado pelo Financeiro com a tool de remuneração | `etapa06_regras.py` (verificação); `etapa06_agentes.py` (Financeiro) |
@@ -99,9 +103,9 @@ graph TD;
 	classDef last fill:#bfb6fc
 ```
 
-## Etapa 4 (pronta): o que eu entendi
+## Etapa 4: o que eu entendi
 
-- Diferença entre a saída online e a offline: online os feriados vêm da BrasilAPI (14 feriados, 0,1 s) e o câmbio vem da
+- Diferença entre a saída online e a offline: em online os feriados vêm da BrasilAPI (14 feriados, 0,1 s) e o câmbio vem da
   Frankfurter (4,9923). Offline aparecem 3 mensagens `[retry]` para cada API, os feriados vêm do arquivo local (13
   feriados, 1,5 s) e o câmbio vira `None`, ou seja, "a calcular". O resto (datas, dias úteis) fica igual.
 - Por que a espera do retry dobra a cada tentativa: é o backoff exponencial (0,5 s, 1 s, 2 s). Se a API está caída ou
@@ -120,7 +124,7 @@ graph TD;
 - Tokens totais: não medi (o resumo dá 0). Os nós do grafo não devolvem `tokens`, porque essa chave não existe no
   `Estado`. Os tokens por agente ficam nos `eventos` do hook `Governanca`.
 
-## Opcionais (preencha só os que fez)
+## Opcionais 
 
 - 🆕 A: votos e decisão do C9: voto 1 = férias de 10/04 a 19/04, voto 2 = férias de 03/04 a 12/04, voto 3 = férias de 10/04
   a 20/04 (2027). Não teve maioria nas datas, então `divergencia=True` e o sistema pede esclarecimento. Tempo dos 3

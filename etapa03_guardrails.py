@@ -43,9 +43,8 @@ LIMIAR = 0.7  # nota a partir da qual o pedido é bloqueado (ajuste olhando as n
 # ETAPA 3.1 -- as expressões regulares
 #   CPF: 000.000.000-00 (pontos e traço opcionais)
 #   CID: uma letra maiúscula + 2 dígitos, com ponto e 1 dígito opcionais (F32, F32.1). Use \b nas bordas.
-RE_CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")  # TODO ETAPA 3.1: re.compile(...)
-RE_CID = re.compile(r"\b[A-Z]\d{2}(?:\.\d)?\b")  # TODO ETAPA 3.1: re.compile(...)
-
+RE_CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+RE_CID = re.compile(r"\b[A-Z]\d{2}(?:\.\d)?\b")
 
 def encontrar_dado_sensivel(texto: str) -> str | None:
     # ETAPA 3.1 -- devolva "cpf", "cid" ou None
