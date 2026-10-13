@@ -1,6 +1,6 @@
 # Entrega: Assistente de Gestão de Pessoas
 
-**Aluno(s):** Tiago André da Silveira Fialho / Thiago Lobo
+**Aluno(s):** Grupo 01
 
 
 **Até onde chegou:** ( ) Marco mínimo (Etapa 6)  (X) Marco completo (Etapa 9)  (X) 
